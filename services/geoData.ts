@@ -1,6 +1,6 @@
 // Approximated and simplified GeoJSON data for demonstration purposes
 // Corrected structure for Uzbekistan's complex borders including exclaves
-import regions from '../data/regions.js';
+import regions from '../data/regions.json';
 import andijon from '../data/andijon.js';
 import buxoro from '../data/buxoro.js';
 import fargona from '../data/fargona.js';
@@ -44,6 +44,24 @@ export const UZBEKISTAN_BORDER = {
   ]
 };
 
+// mapping of region names to their respective district data
+const DISTRICT_DATA_MAP: Record<string, any> = {
+  "Andijon viloyati": andijon,
+  "Buxoro viloyati": buxoro,
+  "Farg'ona viloyati": fargona,
+  "Jizzax viloyati": jizzax,
+  "Namangan viloyati": namangan,
+  "Navoiy viloyati": navoiy,
+  "Qashqadaryo viloyati": qashqadaryo,
+  "Qoraqalpog'iston Respublikasi": qoraqalpogiston,
+  "Samarqand viloyati": samarqand,
+  "Sirdaryo viloyati": sirdaryo,
+  "Surxondaryo viloyati": surxondaryo,
+  "Toshkent viloyati": toshkent,
+  "Toshkent sh.": toshkent, // Tashkent City districts are in toshkent.js
+  "Xorazm viloyati": xorazm
+};
+
 // Normalize GeometryCollections (Leaflet can be picky with them)
 const normalizeGeometry = (geometry: any) => {
   if (!geometry) return geometry;
@@ -60,7 +78,7 @@ const normalizeGeometry = (geometry: any) => {
   return geometry;
 };
 
-const normalizeRegions = (fc: any) => ({
+const normalizeFeatureCollection = (fc: any) => ({
   type: 'FeatureCollection',
   features: (fc?.features ?? []).map((f: any) => ({
     ...f,
@@ -68,92 +86,19 @@ const normalizeRegions = (fc: any) => ({
   })).filter((f: any) => !!f.geometry),
 });
 
-// Merge all region data sources
-const mergeRegionData = () => {
-  const allRegions = [
-    regions,
-    andijon,
-    buxoro,
-    fargona,
-    jizzax,
-    namangan,
-    navoiy,
-    qashqadaryo,
-    qoraqalpogiston,
-    samarqand,
-    sirdaryo,
-    surxondaryo,
-    toshkent,
-    xorazm
-  ];
+// Real regions data (viloyatlar) - now using ONLY the top-level regions file
+export const REGIONS_GEOJSON = normalizeFeatureCollection(regions);
 
-  const allFeatures = allRegions.flatMap((region: any) => region?.features ?? []);
-
-  return {
-    type: 'FeatureCollection',
-    features: allFeatures
-  };
+export const getDistrictsGeoJson = (regionName: string) => {
+  // Try to find matching data in our map
+  // Note: regionName should match the 'name' property in regions.json
+  const data = DISTRICT_DATA_MAP[regionName];
+  if (!data) return { type: "FeatureCollection", features: [] };
+  return normalizeFeatureCollection(data);
 };
 
-// Real regions data (viloyatlar) sourced from local data files
-export const REGIONS_GEOJSON = normalizeRegions(mergeRegionData() as any);
 
-// Districts within Tashkent City
-export const DISTRICTS_GEOJSON = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      properties: { name: "Chilonzor" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [69.18, 41.28], [69.24, 41.28], [69.24, 41.25], [69.18, 41.25], [69.18, 41.28]
-        ]]
-      }
-    },
-    {
-      type: "Feature",
-      properties: { name: "Yunusobod" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [69.25, 41.35], [69.30, 41.35], [69.30, 41.30], [69.25, 41.30], [69.25, 41.35]
-        ]]
-      }
-    },
-    {
-      type: "Feature",
-      properties: { name: "Mirzo Ulugbek" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [69.30, 41.34], [69.35, 41.34], [69.35, 41.29], [69.30, 41.29], [69.30, 41.34]
-        ]]
-      }
-    },
-    {
-      type: "Feature",
-      properties: { name: "Yashnobod" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [69.28, 41.29], [69.34, 41.29], [69.34, 41.25], [69.28, 41.25], [69.28, 41.29]
-        ]]
-      }
-    },
-    {
-      type: "Feature",
-      properties: { name: "Sergeli" },
-      geometry: {
-        type: "Polygon",
-        coordinates: [[
-          [69.18, 41.24], [69.25, 41.24], [69.25, 41.20], [69.18, 41.20], [69.18, 41.24]
-        ]]
-      }
-    }
-  ]
-};
+
 
 // Neighborhoods (Mahallas) - Simulated for Chilonzor district
 const generateMahallas = () => {

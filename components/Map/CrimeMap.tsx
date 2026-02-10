@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, GeoJSON, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, CircleMarker, Popup, Tooltip, GeoJSON, useMapEvents, useMap } from 'react-leaflet';
 import { CrimeIncident, Language } from '../../types';
 import { CRIME_COLORS, INITIAL_MAP_CENTER, INITIAL_ZOOM } from '../../constants';
 import { AlertTriangle, MapPin } from 'lucide-react';
-import { UZBEKISTAN_BORDER, REGIONS_GEOJSON, DISTRICTS_GEOJSON, NEIGHBORHOODS_GEOJSON } from '../../services/geoData';
+import { REGIONS_GEOJSON, getDistrictsGeoJson, NEIGHBORHOODS_GEOJSON } from '../../services/geoData';
+import uzbekistanBorder from '../../services/uzbekistan.json';
 import { TRANSLATIONS } from '../../services/translations';
 
 interface CrimeMapProps {
@@ -11,7 +12,6 @@ interface CrimeMapProps {
   language: Language;
 }
 
-// Component to handle zoom events
 const ZoomHandler = ({ setZoom }: { setZoom: (z: number) => void }) => {
   useMapEvents({
     zoomend: (e) => {
@@ -21,68 +21,109 @@ const ZoomHandler = ({ setZoom }: { setZoom: (z: number) => void }) => {
   return null;
 };
 
+const MapController = ({
+  reset
+}: {
+  reset: boolean;
+}) => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Standard Leaflet fix for maps that might have been hidden/uncentered on mount
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+
+  useEffect(() => {
+    if (reset) {
+      map.setView([INITIAL_MAP_CENTER.lat, INITIAL_MAP_CENTER.lng], 5, {
+        animate: true,
+        duration: 1.5
+      });
+    }
+  }, [reset, map]);
+
+  return null;
+};
+
 const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
   const [currentZoom, setCurrentZoom] = useState(INITIAL_ZOOM);
-  const t = TRANSLATIONS[language];
-  const getRegionLabel = (properties: Record<string, any>) =>
-    properties?.name || properties?.ADM1_UZ || properties?.ADM1_EN || properties?.ADM1_RU || 'Unknown';
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [resetToggle, setResetToggle] = useState(false);
+  const [mapRef, setMapRef] = useState<any>(null);
 
-  // Styling functions for different layers
-  const countryStyle = {
-    color: '#64748b', // Slate 500
-    weight: 4,
-    fillOpacity: 0,
-    fillColor: 'transparent'
-  };
+  const t = TRANSLATIONS[language];
+
+  const getRegionLabel = (properties: Record<string, any>) =>
+    properties?.name || properties?.ADM1_EN || properties?.ADM1_RU || properties?.ADM1_UZ || 'Unknown';
 
   const regionStyle = {
-    color: '#60a5fa', // Light blue (blue-400)
+    color: '#60a5fa',
     weight: 1.5,
     fillOpacity: 0,
     fillColor: 'transparent',
-    opacity: 0.6
+    opacity: 0.6,
   };
 
   const districtStyle = {
-    color: '#60a5fa', // Light blue (blue-400)
+    color: '#60a5fa',
     weight: 1,
     fillOpacity: 0,
     fillColor: 'transparent',
-    opacity: 0.5
+    opacity: 0.5,
   };
 
   const neighborhoodStyle = {
-    color: '#f59e0b', // Amber 500
+    color: '#f59e0b',
     weight: 1,
     fillOpacity: 0,
     fillColor: 'transparent',
     opacity: 0.4,
-    dashArray: '2, 4'
+    dashArray: '2, 4',
   };
 
-  // Hover handlers for interactive effects
+  // O'zbekiston tashqi chegarasi — har doim ko'rinadi, region/zoom ga bog'liq emas
+  const uzbekistanBorderStyle = {
+    color: '#94a3b8',   // Slate-400 — aniq ko'rinadigan kulrang
+    weight: 3,
+    opacity: 1,
+    fillOpacity: 0,
+    fillColor: 'transparent',
+  };
+
   const onEachRegion = (feature: any, layer: any) => {
-    layer.bindTooltip(getRegionLabel(feature.properties), {
+    const regionName = getRegionLabel(feature.properties);
+
+    layer.bindTooltip(regionName, {
       direction: 'center',
       className: 'bg-slate-800/90 border border-blue-500/50 text-blue-300 font-bold shadow-lg px-2 py-1 rounded',
-      permanent: false
+      permanent: false,
     });
 
     layer.on({
       mouseover: (e: any) => {
-        const layer = e.target;
-        layer.setStyle({
+        e.target.setStyle({
           weight: 2.5,
           color: '#3b82f6',
           fillOpacity: 0.15,
           fillColor: '#3b82f6',
-          opacity: 1
+          opacity: 1,
         });
       },
       mouseout: (e: any) => {
-        const layer = e.target;
-        layer.setStyle(regionStyle);
-      }
+        e.target.setStyle(regionStyle);
+      },
+      click: (e: any) => {
+        const bounds = e.target.getBounds();
+        e.target._map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 10,
+          animate: true,
+          duration: 1.2
+        });
+        setSelectedRegion(regionName);
+      },
     });
   };
 
@@ -90,32 +131,36 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
     layer.bindTooltip(feature.properties.name, {
       direction: 'center',
       className: 'bg-slate-800/90 border border-blue-500/50 text-blue-300 font-semibold text-xs shadow-lg px-2 py-1 rounded',
-      permanent: false
+      permanent: false,
     });
 
     layer.on({
       mouseover: (e: any) => {
-        const layer = e.target;
-        layer.setStyle({
+        e.target.setStyle({
           weight: 2,
           color: '#3b82f6',
           fillOpacity: 0.2,
           fillColor: '#3b82f6',
-          opacity: 1
+          opacity: 1,
         });
       },
       mouseout: (e: any) => {
-        const layer = e.target;
-        layer.setStyle(districtStyle);
-      }
+        e.target.setStyle(districtStyle);
+      },
     });
   };
 
-  // Logic for displaying layers based on zoom
-  const showCountry = currentZoom < 10;
-  const showRegions = currentZoom < 14;
-  const showDistricts = currentZoom >= 10;
-  const showNeighborhoods = currentZoom >= 14;
+  const showRegions = selectedRegion === null;
+  const showDistricts = selectedRegion !== null;
+  const showNeighborhoods = selectedRegion !== null && currentZoom >= 14;
+
+  const currentDistricts = selectedRegion ? getDistrictsGeoJson(selectedRegion) : null;
+  const hasDistricts = currentDistricts && (currentDistricts as any).features.length > 0;
+
+  // Agar distriktlar bo'sh bo'lsa — debug uchun
+  if (selectedRegion && !hasDistricts) {
+    console.warn(`[CrimeMap] "${selectedRegion}" uchun districtlar topilmadi.`);
+  }
 
   return (
     <div className="h-full w-full rounded-xl overflow-hidden border border-slate-700 shadow-2xl relative z-0">
@@ -123,19 +168,23 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
         center={INITIAL_MAP_CENTER}
         zoom={INITIAL_ZOOM}
         style={{ height: '100%', width: '100%', background: '#0f172a' }}
+        ref={setMapRef}
       >
         <ZoomHandler setZoom={setCurrentZoom} />
-
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        <MapController
+          reset={resetToggle}
         />
 
-        {/* Administrative Boundaries Layers */}
-        {/* {showCountry && (
-          <GeoJSON key="uz-borders" data={UZBEKISTAN_BORDER as any} style={countryStyle} />
-        )} */}
+        {/* TileLayer olib tashlandi — boshqa davlatlar ko'rinmasligi uchun */}
 
+        {/* O'zbekiston tashqi chegarasi — HAR DOIM ko'rinadi */}
+        <GeoJSON
+          key="uzbekistan-border"
+          data={uzbekistanBorder as any}
+          style={uzbekistanBorderStyle}
+        />
+
+        {/* Region chegaralari — faqat hech qaysi region tanlanmaganda */}
         {showRegions && (
           <GeoJSON
             key="regions"
@@ -145,22 +194,32 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
           />
         )}
 
-        {showDistricts && (
+        {/* District chegaralari — FAQAT region bosilganda va FAQAT o'sha regionniki */}
+        {showDistricts && hasDistricts && (
           <GeoJSON
-            key="districts"
-            data={DISTRICTS_GEOJSON as any}
+            key={`districts-${selectedRegion}`}
+            data={currentDistricts as any}
             style={districtStyle}
             onEachFeature={onEachDistrict}
           />
         )}
 
+        {/* Mahalla chegaralari — region tanlanganda va yaqin zoomda */}
         {showNeighborhoods && (
-          <GeoJSON key="neighborhoods" data={NEIGHBORHOODS_GEOJSON as any} style={neighborhoodStyle} onEachFeature={(feature, layer) => {
-            layer.bindTooltip(feature.properties.name, { direction: 'center', className: 'bg-transparent border-0 text-amber-400 text-[10px] shadow-none' });
-          }} />
+          <GeoJSON
+            key="neighborhoods"
+            data={NEIGHBORHOODS_GEOJSON as any}
+            style={neighborhoodStyle}
+            onEachFeature={(feature, layer) => {
+              layer.bindTooltip(feature.properties.name, {
+                direction: 'center',
+                className: 'bg-transparent border-0 text-amber-400 text-[10px] shadow-none',
+              });
+            }}
+          />
         )}
 
-        {/* Crime Incidents Layer */}
+        {/* Jinoyat nuqtalari */}
         {crimes.map((crime) => (
           <CircleMarker
             key={crime.id}
@@ -169,9 +228,9 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
               color: CRIME_COLORS[crime.type],
               fillColor: CRIME_COLORS[crime.type],
               fillOpacity: 0.8,
-              weight: 1
+              weight: 1,
             }}
-            radius={currentZoom > 13 ? 12 : 6} // Resize markers based on zoom
+            radius={currentZoom > 13 ? 12 : 6}
           >
             <Popup className="custom-popup">
               <div className="p-2 min-w-[200px]">
@@ -182,13 +241,18 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
                   >
                     {crime.type}
                   </span>
-                  <span className="text-slate-500 text-xs">{new Date(crime.date).toLocaleDateString()}</span>
+                  <span className="text-slate-500 text-xs">
+                    {new Date(crime.date).toLocaleDateString()}
+                  </span>
                 </div>
                 <h3 className="font-semibold text-slate-800 text-sm mb-1">{crime.district}</h3>
                 <p className="text-slate-600 text-xs mb-2">{crime.description}</p>
                 <div className="flex items-center text-xs font-medium text-slate-500">
                   <AlertTriangle size={12} className="mr-1" />
-                  {t.col_severity}: <span className={`ml-1 ${crime.severity === 'Critical' ? 'text-red-600' : 'text-slate-600'}`}>{crime.severity}</span>
+                  {t.col_severity}:{' '}
+                  <span className={`ml-1 ${crime.severity === 'Critical' ? 'text-red-600' : 'text-slate-600'}`}>
+                    {crime.severity}
+                  </span>
                 </div>
               </div>
             </Popup>
@@ -199,14 +263,42 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
         ))}
       </MapContainer>
 
-      {/* Zoom Indicator for Debug/UX */}
+      {/* Orqaga qaytish tugmasi */}
+      {selectedRegion && (
+        <button
+          onClick={() => {
+            setSelectedRegion(null);
+            setResetToggle(prev => !prev);
+          }}
+          className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur border border-blue-500/50 px-4 py-2 rounded-lg z-[1000] text-sm text-blue-300 font-semibold hover:bg-blue-600 hover:text-white transition-all shadow-lg flex items-center gap-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          {t.map_back || 'Back to Regions'}
+        </button>
+      )}
+
+      {/* Zoom indikatori */}
       <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur border border-slate-700 px-3 py-1 rounded-lg z-[1000] text-xs text-slate-400 font-mono">
         {t.map_zoom}: {currentZoom}
       </div>
 
-      {/* Map Legend Overlay */}
+      {/* Xarita legendasi */}
       <div className="absolute bottom-4 right-4 bg-slate-900/90 backdrop-blur border border-slate-700 p-3 rounded-lg z-[1000] text-xs">
-        <h4 className="font-bold text-slate-300 mb-2 flex items-center gap-2"><MapPin size={14} /> {t.map_legend}</h4>
+        <h4 className="font-bold text-slate-300 mb-2 flex items-center gap-2">
+          <MapPin size={14} /> {t.map_legend}
+        </h4>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           {Object.entries(CRIME_COLORS).map(([type, color]) => (
             <div key={type} className="flex items-center gap-2">
@@ -216,16 +308,20 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
           ))}
           <div className="col-span-2 mt-2 pt-2 border-t border-slate-700">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-4 h-1 bg-slate-500"></div> <span className="text-slate-500">{t.legend_country}</span>
+              <div className="w-4 h-1 bg-slate-500"></div>
+              <span className="text-slate-500">{t.legend_country}</span>
             </div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-4 h-1 bg-blue-500 border-dashed border-t border-blue-500"></div> <span className="text-blue-500">{t.legend_region}</span>
+              <div className="w-4 h-1 bg-blue-500"></div>
+              <span className="text-blue-500">{t.legend_region}</span>
             </div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-4 h-1 bg-emerald-500"></div> <span className="text-emerald-500">{t.legend_district}</span>
+              <div className="w-4 h-1 bg-emerald-500"></div>
+              <span className="text-emerald-500">{t.legend_district}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-1 bg-amber-500 border-dashed border-t border-amber-500"></div> <span className="text-amber-500">{t.legend_mahalla}</span>
+              <div className="w-4 h-1 bg-amber-500"></div>
+              <span className="text-amber-500">{t.legend_mahalla}</span>
             </div>
           </div>
         </div>

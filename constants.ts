@@ -10,6 +10,6 @@ export const CRIME_COLORS: Record<CrimeType, string> = {
   [CrimeType.HOMICIDE]: '#dc2626', // Dark Red
 };
 
-// Center of Tashkent, Uzbekistan
-export const INITIAL_MAP_CENTER = { lat: 41.311081, lng: 69.240562 };
-export const INITIAL_ZOOM = 12;
+// ✅ O'zbekiston butun ko'rinishi uchun — region tanlash imkoni bo'lsin
+export const INITIAL_MAP_CENTER = { lat: 41.3775, lng: 63.5 };
+export const INITIAL_ZOOM = 6; // Butun O'zbekiston ko'rinadi
