@@ -53,7 +53,7 @@ const DISTRICT_DATA_MAP: Record<string, any> = {
   "Namangan viloyati": namangan,
   "Navoiy viloyati": navoiy,
   "Qashqadaryo viloyati": qashqadaryo,
-  "Qoraqalpog'iston Respublikasi": qoraqalpogiston,
+  "Qoraqalpogʻiston Respublikasi": qoraqalpogiston,
   "Samarqand viloyati": samarqand,
   "Sirdaryo viloyati": sirdaryo,
   "Surxondaryo viloyati": surxondaryo,
