@@ -12,9 +12,14 @@ interface ChartProps {
 }
 
 export const DistrictRiskChart: React.FC<ChartProps> = ({ stats }) => {
+  const sortedStats = React.useMemo(
+    () => [...stats].sort((a, b) => b.totalCrimes - a.totalCrimes),
+    [stats]
+  );
+
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={stats} layout="vertical" margin={{ left: 20 }}>
+      <BarChart data={sortedStats} layout="vertical" margin={{ left: 20 }}>
         <XAxis type="number" hide />
         <YAxis 
           dataKey="regionName" 
@@ -40,11 +45,14 @@ export const DistrictRiskChart: React.FC<ChartProps> = ({ stats }) => {
 
 export const CrimeTypeDistribution: React.FC<ChartProps> = ({ crimes }) => {
   const data = React.useMemo(() => {
+    const totalCrimes = crimes.length || 1;
     const counts: Record<string, number> = {};
     crimes.forEach(c => {
       counts[c.type] = (counts[c.type] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value, share: value / totalCrimes }))
+      .sort((a, b) => b.share - a.share);
   }, [crimes]);
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, CircleMarker, Popup, Tooltip, GeoJSON, useMapEvents, useMap } from 'react-leaflet';
-import { CrimeIncident, Language } from '../../types';
-import { CRIME_COLORS, INITIAL_MAP_CENTER, INITIAL_ZOOM } from '../../constants';
+import { CrimeIncident, CrimeType, Language } from '../../types';
+import { CRIME_COLORS, crimeTypeLabels, INITIAL_MAP_CENTER, INITIAL_ZOOM } from '../../constants';
 import { AlertTriangle, MapPin } from 'lucide-react';
 import { REGIONS_GEOJSON, getDistrictsGeoJson, NEIGHBORHOODS_GEOJSON } from '../../services/geoData';
 import uzbekistanBorder from '../../services/uzbekistan.json';
@@ -303,7 +303,7 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
           {Object.entries(CRIME_COLORS).map(([type, color]) => (
             <div key={type} className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
-              <span className="text-slate-400">{type}</span>
+              <span className="text-slate-400">{crimeTypeLabels[language][type as CrimeType]}</span>
             </div>
           ))}
           <div className="col-span-2 mt-2 pt-2 border-t border-slate-700">

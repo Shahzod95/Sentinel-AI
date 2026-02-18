@@ -11,6 +11,7 @@ import { MOCK_CRIMES, calculateRegionStats } from './services/mockData';
 import { generateCrimeAnalysis } from './services/geminiService';
 import { CrimeType, Language } from './types';
 import { TRANSLATIONS } from './services/translations';
+import { crimeTypeLabels } from './constants';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'map'>('map');
@@ -23,6 +24,7 @@ function App() {
   const [language, setLanguage] = useState<Language>('uz');
 
   const t = TRANSLATIONS[language];
+  
 
   // Derived state
   const filteredCrimes = useMemo(() => {
@@ -202,7 +204,7 @@ function App() {
                     onClick={() => setSelectedType(type)}
                     className={`px-5 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap ${selectedType === type ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-slate-600'}`}
                   >
-                    {type}
+                    {crimeTypeLabels[language][type as CrimeType]}
                   </button>
                 ))}
               </div>
@@ -268,7 +270,7 @@ function App() {
                     <h3 className="font-bold text-white mb-6 text-lg tracking-tight">{t.chart_risk}</h3>
                     <DistrictRiskChart stats={stats} crimes={filteredCrimes} />
                   </div>
-                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 shadow-xl">
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl p-6 shadow-xl overflow-y-auto">
                     <h3 className="font-bold text-white mb-6 text-lg tracking-tight">{t.chart_types}</h3>
                     <CrimeTypeDistribution stats={stats} crimes={filteredCrimes} />
                   </div>
