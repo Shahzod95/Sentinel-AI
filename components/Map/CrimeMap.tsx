@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, CircleMarker, Popup, Tooltip, GeoJSON, useMapEvents, useMap } from 'react-leaflet';
 import { CrimeIncident, CrimeType, Language } from '../../types';
 import { CRIME_COLORS, crimeTypeLabels, INITIAL_MAP_CENTER, INITIAL_ZOOM } from '../../constants';
@@ -10,6 +10,7 @@ import { TRANSLATIONS } from '../../services/translations';
 interface CrimeMapProps {
   crimes: CrimeIncident[];
   language: Language;
+  datasetLabel: string;
 }
 
 const ZoomHandler = ({ setZoom }: { setZoom: (z: number) => void }) => {
@@ -47,13 +48,48 @@ const MapController = ({
   return null;
 };
 
-const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
+const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language, datasetLabel }) => {
   const [currentZoom, setCurrentZoom] = useState(INITIAL_ZOOM);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [resetToggle, setResetToggle] = useState(false);
   const [mapRef, setMapRef] = useState<any>(null);
 
   const t = TRANSLATIONS[language];
+
+  const groupedCrimes = useMemo(() => {
+    const byDistrict: Record<string, {
+      count: number;
+      latSum: number;
+      lngSum: number;
+      sample: CrimeIncident;
+    }> = {};
+
+    crimes.forEach((crime) => {
+      if (!byDistrict[crime.district]) {
+        byDistrict[crime.district] = {
+          count: 0,
+          latSum: 0,
+          lngSum: 0,
+          sample: crime,
+        };
+      }
+
+      byDistrict[crime.district].count += 1;
+      byDistrict[crime.district].latSum += crime.location.lat;
+      byDistrict[crime.district].lngSum += crime.location.lng;
+    });
+
+    return Object.entries(byDistrict).map(([district, data]) => ({
+      id: `group-${district}`,
+      district,
+      count: data.count,
+      location: {
+        lat: data.latSum / data.count,
+        lng: data.lngSum / data.count,
+      },
+      sample: data.sample,
+    }));
+  }, [crimes]);
 
   const getRegionLabel = (properties: Record<string, any>) =>
     properties?.name || properties?.ADM1_EN || properties?.ADM1_RU || properties?.ADM1_UZ || 'Unknown';
@@ -219,45 +255,45 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
           />
         )}
 
-        {/* Jinoyat nuqtalari */}
-        {crimes.map((crime) => (
+        {/* Jinoyat nuqtalari (hudud bo'yicha agregatsiya) */}
+        {groupedCrimes.map((crimeGroup) => (
           <CircleMarker
-            key={crime.id}
-            center={[crime.location.lat, crime.location.lng]}
+            key={crimeGroup.id}
+            center={[crimeGroup.location.lat, crimeGroup.location.lng]}
             pathOptions={{
-              color: CRIME_COLORS[crime.type],
-              fillColor: CRIME_COLORS[crime.type],
+              color: CRIME_COLORS[crimeGroup.sample.type],
+              fillColor: CRIME_COLORS[crimeGroup.sample.type],
               fillOpacity: 0.8,
               weight: 1,
             }}
-            radius={currentZoom > 13 ? 12 : 6}
+            radius={Math.min(18, Math.max(currentZoom > 13 ? 8 : 6, 5 + Math.log2(crimeGroup.count + 1) * 2))}
           >
             <Popup className="custom-popup">
               <div className="p-2 min-w-[200px]">
                 <div className="flex items-center justify-between mb-2">
                   <span
                     className="text-xs font-bold px-2 py-1 rounded text-white"
-                    style={{ backgroundColor: CRIME_COLORS[crime.type] }}
+                    style={{ backgroundColor: CRIME_COLORS[crimeGroup.sample.type] }}
                   >
-                    {crime.type}
+                    {datasetLabel}
                   </span>
                   <span className="text-slate-500 text-xs">
-                    {new Date(crime.date).toLocaleDateString()}
+                    {new Date(crimeGroup.sample.date).toLocaleDateString()}
                   </span>
                 </div>
-                <h3 className="font-semibold text-slate-800 text-sm mb-1">{crime.district}</h3>
-                <p className="text-slate-600 text-xs mb-2">{crime.description}</p>
-                <div className="flex items-center text-xs font-medium text-slate-500">
+                <h3 className="font-semibold text-slate-800 text-sm mb-1">{crimeGroup.district}</h3>
+                <p className="text-slate-600 text-xs mb-2">{crimeGroup.sample.description}</p>
+                {/* <div className="flex items-center text-xs font-medium text-slate-500">
                   <AlertTriangle size={12} className="mr-1" />
                   {t.col_severity}:{' '}
-                  <span className={`ml-1 ${crime.severity === 'Critical' ? 'text-red-600' : 'text-slate-600'}`}>
-                    {crime.severity}
+                  <span className={`ml-1 ${crimeGroup.sample.severity === 'Critical' ? 'text-red-600' : 'text-slate-600'}`}>
+                    {crimeGroup.sample.severity}
                   </span>
-                </div>
+                </div> */}
               </div>
             </Popup>
             <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-              <span className="font-bold text-xs">{crime.type}</span>
+              <span className="font-bold text-xs">{crimeGroup.district}</span>
             </Tooltip>
           </CircleMarker>
         ))}
@@ -295,7 +331,7 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
       </div>
 
       {/* Xarita legendasi */}
-      <div className="absolute bottom-4 right-4 bg-slate-900/90 backdrop-blur border border-slate-700 p-3 rounded-lg z-[1000] text-xs">
+      {/* <div className="absolute bottom-4 right-4 bg-slate-900/90 backdrop-blur border border-slate-700 p-3 rounded-lg z-[1000] text-xs">
         <h4 className="font-bold text-slate-300 mb-2 flex items-center gap-2">
           <MapPin size={14} /> {t.map_legend}
         </h4>
@@ -325,7 +361,7 @@ const CrimeMap: React.FC<CrimeMapProps> = ({ crimes, language }) => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

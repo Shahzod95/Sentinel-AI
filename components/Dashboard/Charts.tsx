@@ -17,15 +17,18 @@ export const DistrictRiskChart: React.FC<ChartProps> = ({ stats }) => {
     [stats]
   );
 
+  const dynamicHeight = Math.max(300, sortedStats.length * 34);
+
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={dynamicHeight}>
       <BarChart data={sortedStats} layout="vertical" margin={{ left: 20 }}>
         <XAxis type="number" hide />
         <YAxis 
           dataKey="regionName" 
           type="category" 
+          interval={0}
           tick={{ fill: '#94a3b8', fontSize: 12 }} 
-          width={100}
+          width={150}
         />
         <Tooltip 
           contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
@@ -36,7 +39,7 @@ export const DistrictRiskChart: React.FC<ChartProps> = ({ stats }) => {
           dataKey="totalCrimes" 
           fill="#3b82f6" 
           radius={[0, 4, 4, 0]} 
-          barSize={20}
+          barSize={16}
         />
       </BarChart>
     </ResponsiveContainer>

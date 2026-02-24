@@ -7,7 +7,7 @@ import CrimeMap from './components/Map/CrimeMap';
 import StatsCard from './components/Dashboard/StatsCard';
 import { DistrictRiskChart, CrimeTypeDistribution } from './components/Dashboard/Charts';
 import Assistant from './components/Chat/Assistant';
-import { MOCK_CRIMES, calculateRegionStats } from './services/mockData';
+import { MAP_DATASET_CRIMES, MAP_DATASET_LABELS, MAP_DATASET_REGION_TOTALS, MapDatasetKey, calculateRegionStatsFromTotals } from './services/mockData';
 import { generateCrimeAnalysis } from './services/geminiService';
 import { CrimeType, Language } from './types';
 import { TRANSLATIONS } from './services/translations';
@@ -15,6 +15,7 @@ import { crimeTypeLabels } from './constants';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'map'>('map');
+  const [activeMapDataset, setActiveMapDataset] = useState<MapDatasetKey>('aniqlanadigan');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,19 +25,26 @@ function App() {
   const [language, setLanguage] = useState<Language>('uz');
 
   const t = TRANSLATIONS[language];
+  const currentCrimes = MAP_DATASET_CRIMES[activeMapDataset];
   
 
   // Derived state
   const filteredCrimes = useMemo(() => {
-    return MOCK_CRIMES.filter(crime => {
+    return currentCrimes.filter(crime => {
       const matchesSearch = crime.district.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             crime.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = selectedType === 'All' || crime.type === selectedType;
       return matchesSearch && matchesType;
     });
-  }, [searchQuery, selectedType, MOCK_CRIMES]);
+  }, [searchQuery, selectedType, currentCrimes]);
 
-  const stats = useMemo(() => calculateRegionStats(filteredCrimes), [filteredCrimes]);
+  const stats = useMemo(() => {
+    const totals = MAP_DATASET_REGION_TOTALS[activeMapDataset].filter((item) =>
+      item.regionName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const defaultType = filteredCrimes[0]?.type ?? CrimeType.THEFT;
+    return calculateRegionStatsFromTotals(totals, defaultType);
+  }, [activeMapDataset, searchQuery, filteredCrimes]);
 
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
@@ -69,10 +77,22 @@ function App() {
            </div>
            <nav className="flex flex-col gap-4">
               <button 
-                onClick={() => { setActiveTab('map'); setIsMobileMenuOpen(false); }} 
-                className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'map' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border border-slate-800/50'}`}
+                onClick={() => { setActiveTab('map'); setActiveMapDataset('aniqlanadigan'); setIsMobileMenuOpen(false); }} 
+                className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'map' && activeMapDataset === 'aniqlanadigan' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border border-slate-800/50'}`}
               >
-                <MapIcon size={22} /> <span className="font-semibold text-lg">{t.nav_map}</span>
+                <MapIcon size={22} /> <span className="font-semibold text-lg">{MAP_DATASET_LABELS[language].aniqlanadigan}</span>
+              </button>
+              <button 
+                onClick={() => { setActiveTab('map'); setActiveMapDataset('kiber'); setIsMobileMenuOpen(false); }} 
+                className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'map' && activeMapDataset === 'kiber' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border border-slate-800/50'}`}
+              >
+                <MapIcon size={22} /> <span className="font-semibold text-lg">{MAP_DATASET_LABELS[language].kiber}</span>
+              </button>
+              <button 
+                onClick={() => { setActiveTab('map'); setActiveMapDataset('oldini_olish'); setIsMobileMenuOpen(false); }} 
+                className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${activeTab === 'map' && activeMapDataset === 'oldini_olish' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border border-slate-800/50'}`}
+              >
+                <MapIcon size={22} /> <span className="font-semibold text-lg">{MAP_DATASET_LABELS[language].oldini_olish}</span>
               </button>
               <button 
                 onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} 
@@ -105,11 +125,25 @@ function App() {
 
           <nav className="mt-8 space-y-2 px-3">
             <button 
-              onClick={() => setActiveTab('map')}
-              className={`w-full flex items-center p-3.5 rounded-xl transition-all duration-200 ${activeTab === 'map' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
+              onClick={() => { setActiveTab('map'); setActiveMapDataset('aniqlanadigan'); }}
+              className={`w-full flex items-center p-3.5 rounded-xl transition-all duration-200 ${activeTab === 'map' && activeMapDataset === 'aniqlanadigan' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
             >
               <MapIcon size={20} />
-              <span className="ml-3 font-semibold hidden lg:block">{t.nav_map}</span>
+              <span className="ml-3 font-semibold hidden lg:block">{MAP_DATASET_LABELS[language].aniqlanadigan}</span>
+            </button>
+            <button 
+              onClick={() => { setActiveTab('map'); setActiveMapDataset('kiber'); }}
+              className={`w-full flex items-center p-3.5 rounded-xl transition-all duration-200 ${activeTab === 'map' && activeMapDataset === 'kiber' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
+            >
+              <MapIcon size={20} />
+              <span className="ml-3 font-semibold hidden lg:block">{MAP_DATASET_LABELS[language].kiber}</span>
+            </button>
+            <button 
+              onClick={() => { setActiveTab('map'); setActiveMapDataset('oldini_olish'); }}
+              className={`w-full flex items-center p-3.5 rounded-xl transition-all duration-200 ${activeTab === 'map' && activeMapDataset === 'oldini_olish' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
+            >
+              <MapIcon size={20} />
+              <span className="ml-3 font-semibold hidden lg:block">{MAP_DATASET_LABELS[language].oldini_olish}</span>
             </button>
             <button 
               onClick={() => setActiveTab('dashboard')}
@@ -188,9 +222,9 @@ function App() {
         </header>
 
         {/* Main Content Scrollable Area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col pt-4">
           {/* Filters Bar (Common) */}
-          <div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
+          {/* <div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide w-full md:w-auto">
                 <button 
                   onClick={() => setSelectedType('All')}
@@ -216,7 +250,7 @@ function App() {
               >
                 {isAnalyzing ? <span className="animate-pulse flex items-center gap-2"><Cpu size={16} className="animate-spin-slow"/> {t.btn_analyzing}</span> : <><Cpu size={16} /> {t.btn_analyze}</>}
               </button>
-          </div>
+          </div> */}
 
           <div className="flex-1 overflow-hidden px-4 md:px-8 pb-8 pt-0">
             
@@ -327,24 +361,28 @@ function App() {
                       <div className="text-4xl font-black text-white group-hover:text-blue-400 transition-colors">{filteredCrimes.length}</div>
                    </div>
                    
-                   <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800/50 shadow-xl flex-1 min-h-[260px] hover:border-blue-500/30 transition-all overflow-hidden flex flex-col">
+                   <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800/50 shadow-xl flex-1 min-h-[300px] hover:border-blue-500/30 transition-all overflow-y-auto overflow-x-hidden flex flex-col pb-2">
                       <h3 className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] mb-4">{t.chart_risk}</h3>
                       <div className="flex-1 min-h-0">
                         <DistrictRiskChart stats={stats} crimes={filteredCrimes} />
                       </div>
                    </div>
 
-                   <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800/50 shadow-xl flex-1 min-h-[260px] hover:border-blue-500/30 transition-all overflow-hidden flex flex-col">
+                   {/* <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-800/50 shadow-xl flex-1 min-h-[260px] hover:border-blue-500/30 transition-all overflow-hidden flex flex-col">
                       <h3 className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] mb-4">{t.chart_types}</h3>
                        <div className="flex-1 min-h-0">
                         <CrimeTypeDistribution stats={stats} crimes={filteredCrimes} />
                       </div>
-                   </div>
+                   </div> */}
                 </div>
 
                 {/* Map Container */}
                 <div className="flex-1 rounded-2xl overflow-hidden border border-slate-800/50 shadow-2xl relative order-1 lg:order-2 h-[50%] lg:h-full bg-slate-900">
-                   <CrimeMap crimes={filteredCrimes} language={language} />
+                   <CrimeMap
+                     crimes={filteredCrimes}
+                     language={language}
+                     datasetLabel={MAP_DATASET_LABELS[language][activeMapDataset]}
+                   />
                 </div>
               </div>
             )}
