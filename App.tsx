@@ -11,7 +11,83 @@ import { MAP_DATASET_CRIMES, MAP_DATASET_LABELS, MAP_DATASET_REGION_TOTALS, MapD
 import { generateCrimeAnalysis } from './services/geminiService';
 import { CrimeType, Language } from './types';
 import { TRANSLATIONS } from './services/translations';
-import { crimeTypeLabels } from './constants';
+
+type CrimeFilterKey =
+  | 'drugs'
+  | 'extremism'
+  | 'human_trafficking'
+  | 'bribery'
+  | 'extortion'
+  | 'fraud'
+  | 'theft'
+  | 'intentional_homicide'
+  | 'rape'
+  | 'robbery'
+  | 'looting'
+  | 'hooliganism';
+
+const DATASET_FILTER_KEYS: Record<MapDatasetKey, CrimeFilterKey[]> = {
+  aniqlanadigan: ['drugs', 'extremism', 'human_trafficking', 'bribery'],
+  kiber: ['extortion', 'fraud', 'theft'],
+  oldini_olish: ['intentional_homicide', 'rape', 'robbery', 'looting', 'fraud', 'theft', 'hooliganism'],
+};
+
+const FILTER_LABELS: Record<Language, Record<CrimeFilterKey, string>> = {
+  uz: {
+    drugs: 'Giyohvandlik',
+    extremism: 'Ekstremizm',
+    human_trafficking: 'Odam savdosi',
+    bribery: "Poraxo'rlik",
+    extortion: 'Tovlamachilik',
+    fraud: 'Firibgarlik',
+    theft: "O'g'rilik",
+    intentional_homicide: "Qasddan odam o'ldirish",
+    rape: 'Nomusga tegish',
+    robbery: 'Bosqinchilik',
+    looting: 'Talonchilik',
+    hooliganism: 'Bezorilik',
+  },
+  en: {
+    drugs: 'Narcotics',
+    extremism: 'Extremism',
+    human_trafficking: 'Human trafficking',
+    bribery: 'Bribery',
+    extortion: 'Extortion',
+    fraud: 'Fraud',
+    theft: 'Theft',
+    intentional_homicide: 'Intentional homicide',
+    rape: 'Sexual assault',
+    robbery: 'Robbery',
+    looting: 'Looting',
+    hooliganism: 'Hooliganism',
+  },
+  ru: {
+    drugs: 'Наркотики',
+    extremism: 'Экстремизм',
+    human_trafficking: 'Торговля людьми',
+    bribery: 'Взяточничество',
+    extortion: 'Вымогательство',
+    fraud: 'Мошенничество',
+    theft: 'Кража',
+    intentional_homicide: 'Умышленное убийство',
+    rape: 'Изнасилование',
+    robbery: 'Разбой',
+    looting: 'Грабеж',
+    hooliganism: 'Хулиганство',
+  },
+};
+
+const getDeterministicCrimeFilterKey = (crimeId: string, dataset: MapDatasetKey): CrimeFilterKey => {
+  const options = DATASET_FILTER_KEYS[dataset];
+  if (options.length === 0) return 'theft';
+
+  let hash = 0;
+  for (let i = 0; i < crimeId.length; i++) {
+    hash = (hash * 31 + crimeId.charCodeAt(i)) >>> 0;
+  }
+
+  return options[hash % options.length];
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'map'>('map');
@@ -19,24 +95,30 @@ function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('All');
+  const [selectedCrimeFilter, setSelectedCrimeFilter] = useState<'All' | CrimeFilterKey>('All');
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [language, setLanguage] = useState<Language>('uz');
 
   const t = TRANSLATIONS[language];
   const currentCrimes = MAP_DATASET_CRIMES[activeMapDataset];
+  const currentFilterKeys = DATASET_FILTER_KEYS[activeMapDataset];
   
+  useEffect(() => {
+    setSelectedCrimeFilter('All');
+  }, [activeMapDataset, language]);
 
   // Derived state
   const filteredCrimes = useMemo(() => {
     return currentCrimes.filter(crime => {
       const matchesSearch = crime.district.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             crime.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = selectedType === 'All' || crime.type === selectedType;
+      const matchesType =
+        selectedCrimeFilter === 'All' ||
+        getDeterministicCrimeFilterKey(crime.id, activeMapDataset) === selectedCrimeFilter;
       return matchesSearch && matchesType;
     });
-  }, [searchQuery, selectedType, currentCrimes]);
+  }, [searchQuery, selectedCrimeFilter, currentCrimes, activeMapDataset]);
 
   const stats = useMemo(() => {
     const totals = MAP_DATASET_REGION_TOTALS[activeMapDataset].filter((item) =>
@@ -224,21 +306,21 @@ function App() {
         {/* Main Content Scrollable Area */}
         <div className="flex-1 overflow-hidden flex flex-col pt-4">
           {/* Filters Bar (Common) */}
-          {/* <div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
+          <div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide w-full md:w-auto">
                 <button 
-                  onClick={() => setSelectedType('All')}
-                  className={`px-5 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap ${selectedType === 'All' ? 'bg-white text-slate-950 border-white shadow-lg' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-slate-600'}`}
+                  onClick={() => setSelectedCrimeFilter('All')}
+                  className={`px-5 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap ${selectedCrimeFilter === 'All' ? 'bg-white text-slate-950 border-white shadow-lg' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-slate-600'}`}
                 >
                   {t.filter_all}
                 </button>
-                {Object.values(CrimeType).map(type => (
+                {currentFilterKeys.map((typeKey) => (
                   <button 
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`px-5 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap ${selectedType === type ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-slate-600'}`}
+                    key={typeKey}
+                    onClick={() => setSelectedCrimeFilter(typeKey)}
+                    className={`px-5 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap ${selectedCrimeFilter === typeKey ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:border-slate-600'}`}
                   >
-                    {crimeTypeLabels[language][type as CrimeType]}
+                    {FILTER_LABELS[language][typeKey]}
                   </button>
                 ))}
               </div>
@@ -250,7 +332,7 @@ function App() {
               >
                 {isAnalyzing ? <span className="animate-pulse flex items-center gap-2"><Cpu size={16} className="animate-spin-slow"/> {t.btn_analyzing}</span> : <><Cpu size={16} /> {t.btn_analyze}</>}
               </button>
-          </div> */}
+          </div>
 
           <div className="flex-1 overflow-hidden px-4 md:px-8 pb-8 pt-0">
             
