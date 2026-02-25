@@ -128,6 +128,21 @@ function App() {
     return calculateRegionStatsFromTotals(totals, defaultType);
   }, [activeMapDataset, searchQuery, filteredCrimes]);
 
+  const dashboardDatasetCards = useMemo(() => {
+    const datasetKeys: MapDatasetKey[] = ['aniqlanadigan', 'kiber', 'oldini_olish'];
+    return datasetKeys.map((datasetKey) => {
+      const total = MAP_DATASET_REGION_TOTALS[datasetKey]
+        .filter((item) => item.regionName.toLowerCase().includes(searchQuery.toLowerCase()))
+        .reduce((sum, item) => sum + item.totalCrimes, 0);
+
+      return {
+        key: datasetKey,
+        title: MAP_DATASET_LABELS[language][datasetKey],
+        value: total,
+      };
+    });
+  }, [language, searchQuery]);
+
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
     try {
@@ -306,7 +321,7 @@ function App() {
         {/* Main Content Scrollable Area */}
         <div className="flex-1 overflow-hidden flex flex-col pt-4">
           {/* Filters Bar (Common) */}
-          <div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
+          {activeTab !== "dashboard" && (<div className="px-4 md:px-8 py-5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-slate-950/20">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide w-full md:w-auto">
                 <button 
                   onClick={() => setSelectedCrimeFilter('All')}
@@ -332,7 +347,7 @@ function App() {
               >
                 {isAnalyzing ? <span className="animate-pulse flex items-center gap-2"><Cpu size={16} className="animate-spin-slow"/> {t.btn_analyzing}</span> : <><Cpu size={16} /> {t.btn_analyze}</>}
               </button>
-          </div>
+          </div>)}
 
           <div className="flex-1 overflow-hidden px-4 md:px-8 pb-8 pt-0">
             
@@ -356,27 +371,23 @@ function App() {
                     trend="up" 
                     trendValue={`12% ${t.trend_up}`}
                   />
-                  <StatsCard 
-                    title={t.stat_risk} 
-                    value={stats.filter(s => s.riskScore > 70).length} 
-                    icon={MapIcon} 
-                    color="text-red-500"
-                    subtext={t.stat_risk_sub}
+                  <StatsCard
+                    title={dashboardDatasetCards[0].title}
+                    value={dashboardDatasetCards[0].value}
+                    icon={MapIcon}
+                    color="text-sky-500"
                   />
-                  <StatsCard 
-                    title={t.stat_response} 
-                    value="8.2 min" 
-                    icon={Settings} 
+                  <StatsCard
+                    title={dashboardDatasetCards[1].title}
+                    value={dashboardDatasetCards[1].value}
+                    icon={Cpu}
+                    color="text-orange-500"
+                  />
+                  <StatsCard
+                    title={dashboardDatasetCards[2].title}
+                    value={dashboardDatasetCards[2].value}
+                    icon={FileText}
                     color="text-emerald-500"
-                    trend="down"
-                    trendValue={t.stat_response_trend}
-                  />
-                  <StatsCard 
-                    title={t.stat_solved} 
-                    value="42%" 
-                    icon={FileText} 
-                    color="text-purple-500"
-                    subtext={t.stat_solved_sub}
                   />
                 </div>
 
